@@ -54,6 +54,7 @@ static void gfx_rect(int x, int y, int w, int h, pix c) {
     if (y < 0) y = 0;
     if (x1 > SCR_W) x1 = SCR_W;
     if (y1 > SCR_H) y1 = SCR_H;
+    if (x >= x1 || y >= y1) return;
     for (int j = y; j < y1; j++) {
         pix *p = &g_fb[j * BUF_W + x];
         for (int i = x; i < x1; i++) *p++ = c;
@@ -106,26 +107,12 @@ static void gfx_add(int a) {             /* destello (trueno): suma luz */
         }
 }
 
-/* Aura de luz: todo fuera del radio R queda negro absoluto; dentro se
- * atenua con la distancia. Solo recorre la caja (R+B) alrededor del jugador. */
-static void gfx_light(int cx, int cy, int R, int B) {
-    int r2 = R * R;
-    for (int y = cy - B; y <= cy + B; y++) {
-        if (y < 0 || y >= SCR_H) continue;
-        for (int x = cx - B; x <= cx + B; x++) {
-            if (x < 0 || x >= SCR_W) continue;
-            int dx = x - cx, dy = y - cy, d2 = dx * dx + dy * dy;
-            pix *p = &g_fb[y * BUF_W + x];
-            if (d2 >= r2) { *p = BLACK; continue; }
-            int f = (r2 - d2) * 40 / r2;
-            if (f > 32) f = 32;
-            *p = shade(*p, f);
-        }
-    }
-}
-
 /* ---------- Texto bitmap (fuente 8x8 MSX incluida en libpspdebug) ---------- */
+#ifdef __cplusplus
+extern "C" { extern unsigned char msx[]; }
+#else
 extern unsigned char msx[];
+#endif
 
 static void gfx_char(int x, int y, int ch, pix c, int s) {
     const unsigned char *g = &msx[(ch & 255) * 8];
@@ -159,12 +146,28 @@ static void gfx_text_sh(int x, int y, const char *s, pix c, int sc) {
 }
 
 /* ---------- Sprites 8x8: filas de texto; '1'..'9' = indice de paleta ---------- */
-static void gfx_sprite(const char *const *rows, const pix *pal, int x, int y, int s, int flip) {
-    for (int j = 0; j < 8; j++)
-        for (int i = 0; i < 8; i++) {
-            char ch = rows[j][flip ? 7 - i : i];
+static void gfx_sprite_n(const char *const *rows, int w, int h, const pix *pal, int x, int y, int s, int flip) {
+    for (int j = 0; j < h; j++)
+        for (int i = 0; i < w; i++) {
+            char ch = rows[j][flip ? w - 1 - i : i];
             if (ch >= '1' && ch <= '9') gfx_rect(x + i * s, y + j * s, s, s, pal[ch - '1']);
         }
+}
+static void gfx_sprite(const char *const *rows, const pix *pal, int x, int y, int s, int flip) {
+    gfx_sprite_n(rows, 8, 8, pal, x, y, s, flip);
+}
+
+/* Barra de estado (vida, SP, etc.) */
+static void gfx_bar(int x, int y, int w, int h, int v, int mx, pix fg, pix bg) {
+    gfx_rect(x, y, w, h, bg);
+    if (mx > 0 && v > 0) { int fw = w * v / mx; if (fw < 1) fw = 1; if (fw > w) fw = w; gfx_rect(x, y, fw, h, fg); }
+}
+/* Estatica blanca (n puntos de ruido) */
+static void gfx_static(int n, int vmin, int vmax) {
+    for (int i = 0; i < n; i++) {
+        int v = vmin + (int)(rnd() % (uint32_t)(vmax - vmin + 1));
+        gfx_px((int)(rnd() % SCR_W), (int)(rnd() % SCR_H), rgb(v, v, v));
+    }
 }
 
 #endif
