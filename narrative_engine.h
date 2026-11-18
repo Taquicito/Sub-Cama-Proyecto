@@ -300,6 +300,7 @@ public:
             }
             if (trans == 0 && t >= 600) gfx_fade(32 - (t - 600) * 32 / 40);
         }
+        if (!finished && t > 30 && ((t / 30) & 1) == 0) gfx_text(SCR_W - 8 - 20 * 8, 4, "[START] Saltar escena", RGB5(140,140,150), 1);
         if (trans > 0) {                                  /* portazo: oscurece */
             int f = trans > 20 ? (40 - trans) * 32 / 20 : trans * 32 / 20;
             gfx_fade(32 - f);
