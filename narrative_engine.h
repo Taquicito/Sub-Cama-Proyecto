@@ -1,5 +1,5 @@
-/* narrative_engine.h - Cinematica familiar (3 escenas), cuadros de dialogo,
- * monologos de Leo en los Puntos de Reflexion y textos del entorno. */
+/* narrative_engine.h - Cinemática familiar (3 escenas), cuadros de diálogo,
+ * amigos, tarjetas de cada día y finales. Todos los textos en español con tildes. */
 #ifndef NARRATIVE_ENGINE_H
 #define NARRATIVE_ENGINE_H
 
@@ -9,19 +9,19 @@
 
 enum { W_NARR, W_PAPA, W_MAMA, W_LEO };
 struct DLine { int who; const char *text; };
-static const char *const WHO_NAME[4] = { "", "PAPA", "MAMA", "LEO" };
+static const char *const WHO_NAME[4] = { "", "PAPÁ", "MAMÁ", "LEO" };
 
-/* Escena 1: comedor, 2000s */
+/* Escena 1: comedor, domingo por la noche (años 2000) */
 static const DLine L_DINING[] = {
-    { W_NARR, "Domingo, 8:40 PM. La cena se enfria.\nNadie ha tocado nada." },
-    { W_PAPA, "Otra boleta con rojo. Otra mas.\nDime, Leo, que haces todo el dia?" },
+    { W_NARR, "Domingo, 8:40 p. m. La cena se enfría.\nNadie ha tocado nada." },
+    { W_PAPA, "Otra boleta con rojo. Otra más.\n¿Qué haces todo el día, Leo?" },
     { W_MAMA, "Ni siquiera nos miras cuando te hablamos..." },
-    { W_PAPA, "A tu edad yo ya trabajaba.\nAsi no tienes futuro. Entiendes?" },
+    { W_PAPA, "A tu edad yo ya trabajaba.\nAsí no tienes futuro. ¿Entiendes?" },
     { W_MAMA, "Te la pasas encerrado. No sales.\nYa ni siquiera tienes amigos." },
     { W_NARR, "Sus voces suenan lejos,\ncomo si hablaran bajo el agua." },
-    { W_PAPA, "CONTESTAME CUANDO TE HABLO!" },
+    { W_PAPA, "¡CONTÉSTAME CUANDO TE HABLO!" },
     { W_LEO,  "...Estoy cansado." },
-    { W_MAMA, "Cansado de que? Si no haces nada!" },
+    { W_MAMA, "¿Cansado de qué? ¡Si no haces nada!" },
     { W_NARR, "Solo oyes el zumbido del refrigerador.\nY un peso en el pecho que no se va." },
     { W_LEO,  "Con permiso." }
 };
@@ -37,45 +37,92 @@ static const DLine L_BEDROOM[] = {
 #define N_BEDROOM (int)(sizeof L_BEDROOM / sizeof L_BEDROOM[0])
 
 static const char *const FALL_TXT =
-    "Caes. La lluvia se vuelve estatica blanca\ny luego, silencio.\n"
-    "SUB-CAMA, SECTOR 0. Aqui las voces de casa\nte esperan en la oscuridad.";
+    "Caes. La lluvia se vuelve estática blanca\ny luego, silencio.\n"
+    "ZONA OSCURA. Aquí las voces de casa\nte esperan entre las sombras.\n"
+    "(Vuelve al inicio del pasillo para salir.)";
 
-/* Monologos al subir de nivel: cada victoria revela la verdad */
-struct ReflectLine { int lv; const char *text; };
-static const ReflectLine REFLECT[] = {
-    {  2, "Un monstruo cae y oyes tu propia voz: 'ya lo sabias'.\nCada uno es una nota que no quisiste leer." },
-    {  3, "La boleta se deshace entre tus dedos.\nEra tuya. Siempre fue tuya." },
-    {  4, "Aqui las voces de casa no gritan: susurran.\nEs peor. Suenan como si tuvieran razon." },
-    {  6, "Subes de nivel y nada mejora.\nSolo te haces mas capaz de cargar el peso." },
-    {  8, "Hay una puerta al fondo. No se abre hacia afuera.\nSe abre hacia mas adentro." },
-    { 10, "Recuerdas cuando alguien te pregunto como estabas.\nDijiste 'bien'. Nadie insistio." },
-    { 13, "Ya no recuerdas el borde de tu cama.\nEsto es tu cabeza, y no tiene paredes." },
-    { 16, "No hay salida, Leo. Solo hay pasillos.\nY los monstruos son lo unico que aun te habla." }
-};
-#define N_REFLECT (int)(sizeof REFLECT / sizeof REFLECT[0])
-
+/* Notas y pistas del entorno en la Zona Oscura */
 static const char *const ENV_TXT[8] = {
-    "Un papel arrugado: 'MATEMATICAS 4.0'.\nAlguien lo tacho con rabia.",
-    "Una foto de familia. Tu cara esta rasgada.",
-    "Escrito mil veces en la pared:\n'PODRIAS ESFORZARTE MAS'.",
-    "Una silla vacia junto a un plato frio.\nNadie te llamo a cenar.",
-    "Un telefono descolgado. Alguien dijo\n'luego te llamo' hace anos.",
-    "Un diario sin paginas.\nSolo queda una palabra: cansado.",
+    "Un papel arrugado: 'MATEMÁTICAS 4.0'.\nAlguien lo tachó con rabia.",
+    "Una foto de familia. Tu cara está rasgada.",
+    "Escrito mil veces en la pared:\n'PODRÍAS ESFORZARTE MÁS'.",
+    "Una silla vacía junto a un plato frío.\nNadie te llamó a cenar.",
+    "Un teléfono descolgado. Alguien dijo\n'luego te llamo' hace años.",
+    "Un diario sin páginas.\nSolo queda una palabra: cansado.",
     "Una puerta pintada en la pared.\nNo tiene manija.",
-    "Voces tras el colchon: 'esta bien...\nsolo es una etapa. Ya se te pasara.'"
-};
-static const char *const DEPTH_TXT[4] = {
-    "La puerta se abre. Del otro lado esta el mismo pasillo.\nSolo que mas hondo.",
-    "Otra puerta. Otra caida.\nEl colchon se ensancha para recibirte.",
-    "Reconoces las manchas del techo. Son de tu cuarto.\nPero ahora estas por dentro.",
-    "No hay afuera, Leo.\nSolo hay mas adentro."
-};
-static const char *const DEATH_TXT[3] = {
-    "Te hundes un poco mas...", "El colchon te devuelve. No te deja ir.", "Despertar no es una opcion."
+    "Voces tras el colchón: 'está bien...\nsolo es una etapa. Ya se te pasará.'"
 };
 static const char *const SFX_TXT[6] = {
-    "KRRRRRRK-KRRRK", "*crujido humedo*", "GRRRMMMMMMM", "HHHHRRRRGGGGH", "glub... glub...", "TSSSSSSSK"
+    "KRRRRRRK-KRRRK", "*crujido húmedo*", "GRRRMMMMMMM", "HHHHRRRRGGGGH", "glub... glub...", "TSSSSSSSK"
 };
+
+/* ---------- Amigos: diálogos según el vínculo (0..5) ---------- */
+static const char *const FRIEND_NAME[3] = { "MARCOS", "VALERIA", "SOFÍA" };
+static const char *const FRIEND_TXT[3][6] = {
+    { "¡Leo! Te ves fatal, ¿has dormido? Toma, para tus apuntes.",
+      "Mi hermano dice que de noche se oyen cosas en el callejón.\nYo no iría... pero tú eres terco.",
+      "Cuando algo me pesa, salgo a correr.\nNo arregla nada, pero ayuda a respirar.",
+      "Si un día no quieres hablar, igual aquí estoy.\nSin preguntas.",
+      "Me da igual tu promedio, Leo.\nA mí me importa que estés bien.",
+      "Domingo otra vez. Lo que pase, no lo cargues solo.\n¿Trato?" },
+    { "Leo, no te asustes: he visto sombras en el callejón.\nLes asusta la luz de una linterna.",
+      "Las boletas reprobadas son frágiles.\nUn buen rayo de luz y se deshacen.",
+      "Los ecos de voces familiares odian el ruido blanco.\nPrueba la Estática.",
+      "Cuando la linterna se apaga, ellos pegan más fuerte.\nCuida las pilas.",
+      "Creo que esas criaturas son tus propios miedos.\nY los miedos se hablan, no solo se pelean.",
+      "Pase lo que pase el domingo, cuéntame cómo te fue.\nLo digo en serio." },
+    { "Leo, qué bueno verte. Siéntate a estudiar conmigo:\nde dos se aprende mejor.",
+      "Mi truco: resumir en voz alta.\nLa próxima vez que estudies te saldrá mejor.",
+      "¿Tienes sueño? Esas ojeras no mienten.\nDescansa cuando puedas.",
+      "A veces el bajo rendimiento es cansancio disfrazado.\nNo eres tonto, Leo.",
+      "Si te cuesta, pide ayuda.\nPedir ayuda también cuenta como esforzarse.",
+      "Estoy orgullosa de ti. En serio.\nPase lo que pase con las notas." }
+};
+static const char *const FRIEND_AGAIN[3] = {
+    "Ya hablamos hoy, Leo. ¡Nos vemos mañana!",
+    "Ya te dije lo que sé por hoy. Ten cuidado.",
+    "Sigue con tus apuntes. ¡Tú puedes!"
+};
+static const char *const SHOP_TXT = "¡Bienvenido a la tienda!\nArmaduras raras, pilas y algo de comer.";
+
+/* ---------- Tarjeta de cada día (monólogo matutino) y objetivo sugerido ---------- */
+static const char *const DAY_CARD[N_DAYS] = {
+    "Domingo por la mañana. La casa huele a café recalentado.\nHoy toca salir y conocer el barrio.",
+    "Lunes. Anoche soñaste con un colchón húmedo.\nTodo parece normal... salvo el callejón.",
+    "Martes. Las voces de anoche siguen en tu cabeza.\nEn el callejón hay criaturas nuevas.",
+    "Miércoles. A mitad de semana el cansancio pesa el doble.\nLos monstruos huelen tu miedo.",
+    "Jueves. Las sombras ya no se esconden.\nTu linterna se agota más rápido.",
+    "Viernes. Todos esperan el fin de semana. Tú, no.\nAlgo grande se mueve al fondo de la oscuridad.",
+    "Sábado. Mañana es domingo otra vez.\nEs tu última oportunidad de prepararte.",
+    "Domingo. La cena fría te espera, en casa y en la oscuridad.\nSe acabó el tiempo de dudar."
+};
+static const char *const DAY_GOAL[N_DAYS] = {
+    "Explora la ciudad y habla con tus amigos.",
+    "Estudia, compra equipo y prueba el callejón.",
+    "Aparecen los Ecos Paternos: lleva pilas.",
+    "Haz tareas por la noche: mañana recibes un bono.",
+    "Aparecen los Ecos Maternos: mejora tu armadura.",
+    "Una Puerta Cerrada bloquea pasillos: usa recuerdos.",
+    "Prepárate: mañana es el último domingo.",
+    "Vence a La Cena Fría en la Zona Oscura y duerme."
+};
+static const char *const FAINT_TXT =
+    "Te desmayas. Todo se vuelve blanco...\nDespiertas en tu habitación.";
+
+/* ---------- Finales ---------- */
+struct Ending { const char *title, *text; };
+static const Ending ENDINGS[3] = {
+    { "FINAL: UN DOMINGO DISTINTO",
+      "Despiertas en tu cama. La lluvia por fin paró.\nEsta vez, antes de que empiece la cena, hablas.\n"
+      "No lo arregla todo. Pero por primera vez\nno cargas solo con el peso.\nPedir ayuda también fue una forma de ganar." },
+    { "FINAL: LA CENA TERMINA",
+      "Venciste a la cena fría, pero la casa sigue en silencio.\nSabes que el peso no se va solo.\n"
+      "Mañana intentarás hablar con alguien.\nMañana." },
+    { "FINAL: OTRO DOMINGO IGUAL",
+      "Domingo por la noche. La mesa, el silencio, el reproche.\nLa oscuridad sigue ahí, esperando.\n"
+      "Tal vez la próxima semana alguien te escuche.\nTal vez tú mismo." }
+};
+static const char *const ENDING_NOTE = "Si algo de esto te suena familiar,\nhabla con alguien de confianza.";
 
 /* ================= Cuadro de dialogo con maquina de escribir ================= */
 class DialogBox {
@@ -83,7 +130,7 @@ public:
     const char *text; const char *who; int t;
     DialogBox() : text(""), who(""), t(0) {}
     void begin(const char *txt, const char *speaker) { text = txt; who = speaker; t = 0; }
-    int len() const { return (int)strlen(text); }
+    int len() const { return u8len(text); }
     bool complete() const { return t / 2 >= len(); }
     /* devuelve true cuando el jugador confirma con el texto completo */
     bool update(bool confirm) {
@@ -97,8 +144,8 @@ public:
         gfx_frame(10, 190, 460, 74, RGB5(150,150,160));
         gfx_frame(12, 192, 456, 70, RGB5(50,50,60));
         if (who[0]) {
-            gfx_rect(18, 182, (int)strlen(who) * 8 + 12, 14, RGB5(6,6,12));
-            gfx_frame(18, 182, (int)strlen(who) * 8 + 12, 14, RGB5(150,150,160));
+            gfx_rect(18, 182, u8len(who) * 8 + 12, 14, RGB5(6,6,12));
+            gfx_frame(18, 182, u8len(who) * 8 + 12, 14, RGB5(150,150,160));
             gfx_text(24, 186, who, RGB5(200,60,60), 1);
         }
         gfx_text_n(22, 204, text, t / 2, RGB5(210,210,200), 1);
@@ -238,9 +285,9 @@ public:
                 draw_room(t, fl); draw_bed(ph, pt, t);
                 if (ph == 3 && pt > 60) gfx_clear(BLACK);
                 gfx_add(fl);
-                if (t > 20 && t < 100) { gfx_rect(10, 214, 460, 40, RGB5(6,6,12)); gfx_text(22, 228, "(Las manchas del techo... se mueven?)", RGB5(210,210,200), 1); }
+                if (t > 20 && t < 100) { gfx_rect(10, 214, 460, 40, RGB5(6,6,12)); gfx_text(22, 228, "(Las manchas del techo... ¿se mueven?)", RGB5(210,210,200), 1); }
                 if (ph == 1) draw_sfx(80 + pt, 1);
-                if (ph == 2) { draw_sfx(200, 2); if (pt > 40) gfx_text_sh(30, 232, "LEO: NO... SUELTAME--", RGB5(220,220,210), 1); }
+                if (ph == 2) { draw_sfx(200, 2); if (pt > 40) gfx_text_sh(30, 232, "LEO: NO... ¡SUÉLTAME!", RGB5(220,220,210), 1); }
                 if (ph == 3) draw_sfx(220, 3);
             } else if (t < 560) {                        /* la lluvia se vuelve estatica blanca */
                 gfx_clear(BLACK);
@@ -256,7 +303,7 @@ public:
         if (trans > 0) {                                  /* portazo: oscurece */
             int f = trans > 20 ? (40 - trans) * 32 / 20 : trans * 32 / 20;
             gfx_fade(32 - f);
-            if (trans > 24 && trans < 36) gfx_text_c(120, "*PUM*", RGB5(200,200,200), 3);
+            if (trans > 24 && trans < 36) gfx_text_c(120, "¡PUM!", RGB5(200,200,200), 3);
         }
     }
 };

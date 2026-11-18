@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 
 #define IN_UP       0x001
 #define IN_DOWN     0x002
@@ -16,10 +17,14 @@
 #define IN_SQUARE   0x040
 #define IN_TRIANGLE 0x080
 #define IN_START    0x100
+#define IN_L        0x200
+#define IN_R        0x400
 
 typedef struct { unsigned held, pressed; int ax, ay; } Input;  /* ax, ay: -128..127 */
 
-static char g_save_path[256] = "save.dat";
+/* Prefijo de las ranuras de guardado: se completa con "<n>.sav" -> slot1.sav, slot2.sav... */
+static char g_save_base[200] = "slot";
+static void save_path(int slot, char *out, int sz) { snprintf(out, sz, "%s%d.sav", g_save_base, slot + 1); }
 
 #ifdef __PSP__
 #include <pspkernel.h>
@@ -54,16 +59,16 @@ static void plat_init(int argc, char **argv) {
     memset((void *)0x44000000, 0, FB_BYTES * 2);
     sceDisplaySetFrameBuf((void *)0x04000000, 512, PSP_DISPLAY_PIXEL_FORMAT_5551, PSP_DISPLAY_SETBUF_NEXTFRAME);
 
-    /* Ruta de guardado: junto al EBOOT si esta en memory stick; si no, SAVEDATA */
+    /* Ranuras de guardado: junto al EBOOT si esta en memory stick; si no, en SAVEDATA */
     int ok = 0;
     if (argc > 0 && argv && argv[0] && (strncmp(argv[0], "ms0:", 4) == 0 || strncmp(argv[0], "ef0:", 4) == 0)) {
-        strncpy(g_save_path, argv[0], 200); g_save_path[200] = 0;
-        char *s = strrchr(g_save_path, '/');
-        if (s) { s[1] = 0; strcat(g_save_path, "save.dat"); ok = 1; }
+        char tmp[200]; strncpy(tmp, argv[0], 190); tmp[190] = 0;
+        char *sl = strrchr(tmp, '/');
+        if (sl) { sl[1] = 0; snprintf(g_save_base, sizeof g_save_base, "%sslot", tmp); ok = 1; }
     }
     if (!ok) {
         sceIoMkdir("ms0:/PSP/SAVEDATA", 0777);
-        strcpy(g_save_path, "ms0:/PSP/SAVEDATA/SubCama.sav");
+        strcpy(g_save_base, "ms0:/PSP/SAVEDATA/SubCama_slot");
     }
 }
 
@@ -80,6 +85,8 @@ static void plat_poll(Input *in) {
     if (pad.Buttons & PSP_CTRL_SQUARE) b |= IN_SQUARE;
     if (pad.Buttons & PSP_CTRL_TRIANGLE) b |= IN_TRIANGLE;
     if (pad.Buttons & PSP_CTRL_START) b |= IN_START;
+    if (pad.Buttons & PSP_CTRL_LTRIGGER) b |= IN_L;
+    if (pad.Buttons & PSP_CTRL_RTRIGGER) b |= IN_R;
     int ax = (int)pad.Lx - 128, ay = (int)pad.Ly - 128;
     if (abs(ax) < 32) ax = 0;
     if (abs(ay) < 32) ay = 0;

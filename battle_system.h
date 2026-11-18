@@ -1,10 +1,11 @@
-/* battle_system.h - Combate por turnos estilo Persona 3 / Pokemon.
+/* battle_system.h - Combate por turnos estilo Persona 3 / Pokémon.
  *  - Iniciativa por AGILIDAD (Leo vs enemigos), ronda a ronda.
  *  - Comandos: ATACAR / HABILIDADES-PSI / OBJETOS / HUIR.
- *  - Debilidades elementales: golpear una debilidad da "UN TURNO MAS".
- *  - Estados psicologicos: Desesperanza, Apatia, Terror.
- *  - Efectos: parpadeo, destello, temblor, salpicaduras de sangre.
- *  - Resumen de recompensas: EXP (x multiplicador de dificultad) y Sangre. */
+ *  - Debilidades elementales: golpear una debilidad da "UN TURNO MÁS".
+ *  - Estados psicológicos: Desesperanza, Apatía, Terror.
+ *  - LUZ: la batería de la linterna sube o baja el daño que das y recibes.
+ *  - Armadura de Plantas: regenera vida cada turno.
+ *  - Resumen: EXP (x dificultad), Notas y SUBIDA DE NIVEL AUTOMÁTICA. */
 #ifndef BATTLE_SYSTEM_H
 #define BATTLE_SYSTEM_H
 
@@ -22,10 +23,16 @@ public:
     Player *P;
     Combatant foe[3];
     int ftype[3], ow_index[3], nf;
-    int diff, depth;
-    int r_exp, r_blood, r_item;         /* recompensas */
+    int diff, day;
+    float scale;
+    int r_exp, r_notas, r_item;         /* recompensas */
+    int lvups, old_lv, win_page;        /* subida de nivel automática */
+    int gain_hp, gain_sp, gain_atk, gain_def, gain_agi, gain_mag;
+    int new_skill[N_SKILLS], n_new;
+    bool boss_beaten;
 
-    Battle() : phase(PH_END), result(0), P(0), nf(0), diff(1), depth(0), r_exp(0), r_blood(0), r_item(-1),
+    Battle() : phase(PH_END), result(0), P(0), nf(0), diff(1), day(0), scale(1.0f), r_exp(0), r_notas(0), r_item(-1), lvups(0), old_lv(1), win_page(0),
+               gain_hp(0), gain_sp(0), gain_atk(0), gain_def(0), gain_agi(0), gain_mag(0), n_new(0), boss_beaten(false),
                order_n(0), cur(0), bonus(false), fled(false), menu_sel(0), sub_sel(0), tgt_sel(0),
                pend_kind(0), pend_idx(0), n_msgs(0), msg_i(0), msg_t(0), flash(0), shake(0), t(0), round_no(0),
                disp_php(0), disp_psp(0), hint_t(0) {
@@ -37,15 +44,15 @@ public:
     }
 
     /* ---------- Inicio: crea enemigos escalados por profundidad y dificultad ---------- */
-    void start(Player *p, const int *types, const int *ow, int n, int dpt, int dif) {
-        P = p; nf = n > 3 ? 3 : n; depth = dpt; diff = dif;
+    void start(Player *p, const int *types, const int *ow, int n, int day_, float scale_, int dif) {
+        P = p; nf = n > 3 ? 3 : n; day = day_; scale = scale_; diff = dif; boss_beaten = false;
         const DiffCfg &c = DIFFS[diff];
         for (int i = 0; i < nf; i++) {
             const EnemyDef &d = EDEFS[types[i]];
             Combatant &f = foe[i];
             f.clear();
-            float sc = 1.0f + 0.2f * depth;
-            f.maxhp = f.hp = (int)(d.hp * sc * c.ehp); f.atk = (int)(d.atk * sc); f.def = d.def + depth / 2;
+            float sc = scale;
+            f.maxhp = f.hp = (int)(d.hp * sc * c.ehp); f.atk = (int)(d.atk * sc); f.def = d.def + day / 2;
             f.agi = d.agi; f.mag = (int)(d.mag * sc);
             f.weak_mask = 1 << d.weak; f.resist_mask = 1 << d.resist;
             int dup = 0; for (int j = 0; j < i; j++) if (types[j] == types[i]) dup++;
@@ -55,7 +62,7 @@ public:
         P->clear_status();
         disp_php = P->hp; disp_psp = P->sp;
         phase = PH_INTRO; result = 0; t = 0; round_no = 0; bonus = false; fled = false;
-        n_msgs = 0; flash = 6; shake = 0; hint[0] = 0;
+        n_msgs = 0; flash = 6; shake = 0; hint[0] = 0; lvups = 0; win_page = 0; n_new = 0;
         for (int i = 0; i < NPOP; i++) pop[i].t = 0;
         for (int i = 0; i < NBL; i++) bl[i].life = 0;
     }
@@ -102,7 +109,9 @@ public:
             msg_t++;
             if ((ok && msg_t > 8) || msg_t > 70) { msg_i++; msg_t = 0; if (msg_i >= n_msgs) after_log(); }
             break;
-        case PH_WIN: if (ok && t > 20) { result = 1; phase = PH_END; } break;
+        case PH_WIN:
+            if (ok && t > 20) { if (win_page == 0 && lvups > 0) { win_page = 1; t = 0; flash = 10; } else { result = 1; phase = PH_END; } }
+            break;
         case PH_LOSE: if (t > 200 || (ok && t > 90)) { result = 2; phase = PH_END; } break;
         default: break;
         }
@@ -122,7 +131,7 @@ public:
             if (blink[i + 1] > 0 && (blink[i + 1] & 2)) { /* parpadeo al recibir dano */ }
             else gfx_sprite_n(SPR_ENEMY[ftype[i]], 16, 16, PAL_ENEMY[ftype[i]], fx - 32, fy, 4, 0);
             if (foe[i].alive()) {
-                int nw = (int)strlen(foe[i].name) * 8;
+                int nw = u8len(foe[i].name) * 8;
                 gfx_text_sh(fx - nw / 2, fy - 22, foe[i].name, RGB5(200,190,190), 1);
                 gfx_bar(fx - 28, fy - 10, 56, 5, disp_hp[i], foe[i].maxhp, RGB5(170,24,30), RGB5(30,10,12));
                 if (phase == PH_TARGET && i == tgt_sel && ((t / 6) & 1)) gfx_text(fx - 4, fy + 68, "^", RGB5(255,220,80), 1);
@@ -193,6 +202,7 @@ private:
     /* ----- orden por iniciativa (agilidad) ----- */
     void build_order() {
         round_no++;
+        if (round_no > 1) { P->battery -= 1 + day / 4; if (P->battery < 0) P->battery = 0; }   /* la linterna se gasta */
         int keys[4]; order_n = 0;
         order[order_n] = 0; keys[order_n++] = P->agi * 4 + rndr(4);
         for (int i = 0; i < nf; i++) if (foe[i].alive()) { order[order_n] = i + 1; keys[order_n++] = foe[i].agi * 4 + rndr(4); }
@@ -207,8 +217,9 @@ private:
         int a = order[cur];
         n_msgs = 0;
         if (a == 0) {                                      /* turno de Leo */
+            if (P->regen > 0 && P->hp < P->maxhp) { int h = P->regen; P->heal(h); say("La %s regenera %d PV.", ARMORS[P->armor_eq].name, h); }
             if (P->has(SX_DESPAIR) && P->sp > 0) { P->sp -= 2; if (P->sp < 0) P->sp = 0; say("La desesperanza drena tus fuerzas. (-2 SP)"); }
-            if (P->has(SX_APATHY) && rndr(100) < 50) { say("Leo esta demasiado apatico para moverse..."); play_log(); return; }
+            if (P->has(SX_APATHY) && rndr(100) < 50) { say("Leo está demasiado apático para moverse..."); play_log(); return; }
             if (n_msgs) { menu_sel = 0; play_log_then_menu = true; play_log(); return; }
             menu_sel = 0; phase = PH_MENU;
         } else foe_act(a - 1);
@@ -240,10 +251,12 @@ private:
     }
 
     /* ----- formulas de dano ----- */
+    float light_p() const { return P->battery >= 60 ? 1.10f : (P->battery <= 20 ? 0.85f : 1.0f); }   /* luz buena = más daño */
+    float light_f() const { return P->battery >= 60 ? 0.90f : (P->battery <= 20 ? 1.20f : 1.0f); }   /* luz mala = enemigos más fuertes */
     int calc(const Combatant &a, const Combatant &d, int power, int el, bool magic, bool &weak, bool &res, bool &crit) {
         int base = magic ? power + a.mag * 2 + rndr(4) - d.def / 2 : a.atk * 2 + power + rndr(4) - d.def;
         if (a.has(SX_DESPAIR)) base = base * 3 / 4;
-        float m = 1.0f; weak = res = crit = false;
+        float m = light_p(); weak = res = crit = false;
         if (d.weak_mask & (1 << el)) { m *= 1.5f; weak = true; }
         if (d.resist_mask & (1 << el)) { m *= 0.5f; res = true; }
         if (!magic && rndr(12) == 0) { m *= 1.5f; crit = true; }
@@ -262,14 +275,14 @@ private:
         int dmg = calc(*P, foe[i], power, el, magic, w, r, c);
         foe[i].hp -= dmg; if (foe[i].hp < 0) foe[i].hp = 0;
         hit_fx(i + 1, dmg, w);
-        if (c) say("Golpe critico!");
-        if (w) { say("DEBIL! %s tiembla.", foe[i].name); P->known_weak[ftype[i]] |= (1 << el); }
+        if (c) say("¡Golpe crítico!");
+        if (w) { say("¡DÉBIL! %s tiembla.", foe[i].name); P->known_weak[ftype[i]] |= (1 << el); }
         if (r) say("%s resiste el golpe.", foe[i].name);
         if (!foe[i].alive()) foe_down(i);
         return w;
     }
     bool terror_fail() {
-        if (P->has(SX_TERROR) && rndr(100) < 35) { say("El terror paraliza a Leo. Falla!"); return true; }
+        if (P->has(SX_TERROR) && rndr(100) < 35) { say("El terror paraliza a Leo. ¡Falla!"); return true; }
         return false;
     }
 
@@ -278,7 +291,7 @@ private:
         n_msgs = 0;
         if (!terror_fail()) {
             say("Leo ataca a %s.", foe[i].name);
-            if (hit_foe(i, 0, EL_PHYS, false)) { bonus = true; say("UN TURNO MAS para Leo!"); }
+            if (hit_foe(i, 0, EL_PHYS, false)) { bonus = true; say("¡UN TURNO MÁS para Leo!"); }
         }
         play_log();
     }
@@ -286,12 +299,12 @@ private:
         const Skill &k = SKILLS[s];
         n_msgs = 0; P->sp -= k.cost;
         if (k.kind == K_DMG && terror_fail()) { play_log(); return; }
-        say("Leo usa %s!", k.name);
+        say("¡Leo usa %s!", k.name);
         if (k.kind == K_DMG) {
             bool any = false;
             if (k.target == TG_ALL) { for (int i = 0; i < nf; i++) if (foe[i].alive()) any |= hit_foe(i, k.power, k.el, true); }
             else any = hit_foe(tg, k.power, k.el, true);
-            if (any) { bonus = true; say("UN TURNO MAS para Leo!"); }
+            if (any) { bonus = true; say("¡UN TURNO MÁS para Leo!"); }
         } else if (k.kind == K_HEAL) {
             int h = k.power + P->mag * 2; P->heal(h); say("Leo respira hondo. Recupera %d de vida.", h);
         } else {
@@ -304,7 +317,8 @@ private:
         say("Leo usa %s.", ITEM_NAME[it]);
         if (it == 0) { P->heal(35); say("Recupera 35 de vida."); }
         else if (it == 1) { P->heal_sp(12); say("Recupera 12 SP."); }
-        else { P->clear_status(); P->heal(10); say("Recuerdas un dia bueno. Los estados se disipan."); }
+        else if (it == 2) { P->clear_status(); P->heal(10); say("Recuerdas un día bueno. Los estados se disipan."); }
+        else { P->battery += 40; if (P->battery > 100) P->battery = 100; say("La linterna recupera 40% de luz."); }
         play_log();
     }
     void exec_flee() {
@@ -315,7 +329,7 @@ private:
         if (ch > 90) ch = 90;
         say("Leo intenta huir...");
         if (rndr(100) < ch) { fled = true; say("Escapas entre las sombras."); }
-        else say("No hay a donde correr!");
+        else say("¡No hay adónde correr!");
         play_log();
     }
 
@@ -342,33 +356,43 @@ private:
         if (!status_only) {
             bool phys = (s.el == EL_PHYS);
             int base = phys ? f.atk * 2 + s.power + rndr(4) - P->def : s.power + f.mag * 2 + rndr(4) - P->def / 2;
-            float m = DIFFS[diff].edmg; bool weak = false;
+            float m = DIFFS[diff].edmg * light_f(); bool weak = false;
             if (P->weak_mask & (1 << s.el)) { m *= 1.5f; weak = true; }
             int dmg = (int)(base * m); if (dmg < 1) dmg = 1;
             P->hp -= dmg; if (P->hp < 0) P->hp = 0;
             hit_fx(0, dmg, weak);
             if (weak) {
-                say("DEBIL! Leo siente el golpe en lo mas hondo.");
-                if (DIFFS[diff].ai >= 2) { bonus = true; say("El enemigo explota tu debilidad y actua otra vez!"); }
+                say("¡DÉBIL! Leo siente el golpe en lo más hondo.");
+                if (DIFFS[diff].ai >= 2) { bonus = true; say("¡El enemigo explota tu debilidad y actúa otra vez!"); }
             }
         }
         if (s.status >= 0 && P->hp > 0 && rndr(100) < s.chance + (diff == 3 ? 15 : 0)) {
             P->add_status(s.status, s.turns);
-            say("Leo sufre %s!", SX_NAME[s.status]);
+            say("¡Leo sufre %s!", SX_NAME[s.status]);
         } else if (status_only) say("Leo resiste... esta vez.");
-        if (P->hp <= 0) say("Leo cae de rodillas. El colchon lo reclama.");
+        if (P->hp <= 0) say("Leo cae de rodillas. La oscuridad lo reclama.");
         play_log();
     }
 
-    /* ----- victoria: EXP x multiplicador de dificultad y Sangre ----- */
+    /* ----- victoria: EXP x dificultad, Notas, y SUBIDA DE NIVEL AUTOMÁTICA ----- */
     void enter_win() {
-        float sc = 1.0f + 0.15f * depth; float exp_f = 0, bl_f = 0;
-        for (int i = 0; i < nf; i++) { exp_f += EDEFS[ftype[i]].exp * sc; bl_f += EDEFS[ftype[i]].blood * (1.0f + 0.1f * depth); }
+        float exp_f = 0, nt_f = 0;
+        for (int i = 0; i < nf; i++) {
+            exp_f += EDEFS[ftype[i]].exp * (1.0f + 0.05f * day); nt_f += EDEFS[ftype[i]].notas * (1.0f + 0.1f * day);
+            if (ftype[i] == BOSS_TYPE) boss_beaten = true;
+        }
         r_exp = (int)(exp_f * DIFFS[diff].exp_mult + 0.5f); if (r_exp < 1) r_exp = 1;
-        r_blood = (int)(bl_f + 0.5f);
+        r_notas = (int)(nt_f + 0.5f);
         r_item = (rndr(100) < DIFFS[diff].drop) ? rndr(N_ITEMS) : -1;
-        P->exp += r_exp; P->blood += r_blood; if (r_item >= 0) P->items[r_item]++;
-        phase = PH_WIN; t = 0;
+        P->notas += r_notas; if (r_item >= 0) P->items[r_item]++;
+        old_lv = P->lv;
+        int b_hp = P->base_maxhp, b_sp = P->maxsp, b_atk = P->atk, b_def = P->base_def, b_agi = P->agi, b_mag = P->base_mag;
+        lvups = P->gain_exp(r_exp);
+        gain_hp = P->base_maxhp - b_hp; gain_sp = P->maxsp - b_sp; gain_atk = P->atk - b_atk;
+        gain_def = P->base_def - b_def; gain_agi = P->agi - b_agi; gain_mag = P->base_mag - b_mag;
+        n_new = 0;
+        for (int s = 0; s < N_SKILLS; s++) if (P->knows(s) && SKILLS[s].unlock > old_lv) new_skill[n_new++] = s;
+        phase = PH_WIN; win_page = 0; t = 0;
     }
 
     /* ----- interfaz ----- */
@@ -381,7 +405,7 @@ private:
         }
         if (phase != PH_INTRO) gfx_text_sh(6, 6, b, RGB5(150,140,150), 1);
         char r[24]; snprintf(r, sizeof r, "RONDA %d", round_no);
-        gfx_text_sh(SCR_W - 8 - (int)strlen(r) * 8, 6, r, RGB5(110,100,110), 1);
+        gfx_text_sh(SCR_W - 8 - u8len(r) * 8, 6, r, RGB5(110,100,110), 1);
     }
     void draw_box(int x, int y, int w, int h) { gfx_rect(x, y, w, h, RGB5(8,6,12)); gfx_frame(x, y, w, h, RGB5(150,150,160)); gfx_frame(x + 2, y + 2, w - 4, h - 4, RGB5(50,50,60)); }
     void draw_panel() {
@@ -389,7 +413,7 @@ private:
         if (phase == PH_INTRO) { draw_box(8, 170, 464, 94); gfx_text_c(210, "Algo se mueve en la oscuridad...", RGB5(210,210,200), 1); return; }
         if (phase == PH_LOG && msg_i < n_msgs) { draw_box(8, 170, 464, 94); gfx_text(22, 190, msgs[msg_i], RGB5(210,210,200), 1); if ((t / 20) & 1) gfx_text(448, 246, "X", RGB5(200,200,200), 1); return; }
         if (phase == PH_WIN) { draw_win(); return; }
-        if (phase == PH_LOSE) { draw_box(8, 170, 464, 94); gfx_text_c(200, "LEO HA CAIDO", RGB5(170,20,25), 2); gfx_text_c(232, "El abismo se lo traga un poco mas...", RGB5(140,140,140), 1); return; }
+        if (phase == PH_LOSE) { draw_box(8, 170, 464, 94); gfx_text_c(200, "LEO HA CAIDO", RGB5(170,20,25), 2); gfx_text_c(232, "La oscuridad se lo traga un poco más...", RGB5(140,140,140), 1); return; }
         /* estado de Leo */
         draw_box(8, 170, 226, 94);
         char b[48]; snprintf(b, sizeof b, "LEO   Nv.%d", P->lv); gfx_text(18, 178, b, RGB5(220,220,210), 1);
@@ -397,9 +421,12 @@ private:
         snprintf(b, sizeof b, "%d/%d", P->hp, P->maxhp); gfx_text(166, 194, b, RGB5(200,200,200), 1);
         gfx_text(18, 208, "SP", RGB5(80,120,200), 1); gfx_bar(40, 209, 120, 7, disp_psp, P->maxsp, RGB5(60,100,190), RGB5(10,14,30));
         snprintf(b, sizeof b, "%d/%d", P->sp, P->maxsp); gfx_text(166, 208, b, RGB5(200,200,200), 1);
+        { gfx_text(18, 222, "LUZ", RGB5(230,210,120), 1); gfx_bar(46, 223, 80, 6, P->battery, 100, P->battery <= 20 ? RGB5(220,60,40) : RGB5(230,200,90), RGB5(30,26,10));
+          snprintf(b, sizeof b, "%d%%", P->battery); gfx_text(132, 222, b, RGB5(200,200,200), 1);
+          if (P->battery >= 60) gfx_text(170, 222, "+DAÑO", RGB5(120,200,120), 1); else if (P->battery <= 20) gfx_text(170, 222, "-DAÑO", RGB5(220,90,70), 1); }
         int sx = 18;
-        for (int i = 0; i < SX_COUNT; i++) if (P->has(i)) { snprintf(b, sizeof b, "[%s %d]", SX_SHORT[i], P->status_t[i]); gfx_text(sx, 226, b, RGB5(200,120,60), 1); sx += (int)strlen(b) * 8 + 4; if (sx > 160) { sx = 18; } }
-        if (hint_t > 0) gfx_text(18, 246, hint, RGB5(255,120,80), 1);
+        for (int i = 0; i < SX_COUNT; i++) if (P->has(i)) { snprintf(b, sizeof b, "[%s %d]", SX_SHORT[i], P->status_t[i]); gfx_text(sx, 236, b, RGB5(200,120,60), 1); sx += u8len(b) * 8 + 4; if (sx > 160) { sx = 18; } }
+        if (hint_t > 0) gfx_text(18, 250, hint, RGB5(255,120,80), 1);
         /* menu / submenus */
         draw_box(242, 170, 230, 94);
         if (phase == PH_MENU) {
@@ -412,37 +439,49 @@ private:
             int n = known_count();
             for (int k = 0; k < n; k++) {
                 int s = known_skill(k);
-                snprintf(b, sizeof b, "%c%-15s %2dSP", k == sub_sel ? '>' : ' ', SKILLS[s].name, SKILLS[s].cost);
+                char pn[40]; padf(pn, sizeof pn, SKILLS[s].name, 15);
+                snprintf(b, sizeof b, "%c%s %2dSP", k == sub_sel ? '>' : ' ', pn, SKILLS[s].cost);
                 gfx_text(250, 176 + k * 13, b, k == sub_sel ? RGB5(250,250,240) : (P->sp >= SKILLS[s].cost ? RGB5(140,140,150) : RGB5(80,60,60)), 1);
             }
             gfx_text(250, 246, SKILLS[known_skill(sub_sel)].desc, RGB5(170,150,100), 1);
         } else if (phase == PH_ITEMS) {
             for (int k = 0; k < N_ITEMS; k++) {
-                snprintf(b, sizeof b, "%c%-16s x%d", k == sub_sel ? '>' : ' ', ITEM_NAME[k], P->items[k]);
-                gfx_text(250, 180 + k * 17, b, k == sub_sel ? RGB5(250,250,240) : RGB5(110,110,120), 1);
+                char pn[40]; padf(pn, sizeof pn, ITEM_NAME[k], 16);
+                snprintf(b, sizeof b, "%c%s x%d", k == sub_sel ? '>' : ' ', pn, P->items[k]);
+                gfx_text(250, 178 + k * 15, b, k == sub_sel ? RGB5(250,250,240) : RGB5(110,110,120), 1);
             }
             gfx_text(250, 246, ITEM_DESC[sub_sel], RGB5(170,150,100), 1);
         } else if (phase == PH_TARGET) {
             gfx_text(254, 180, "ELEGIR OBJETIVO", RGB5(220,220,210), 1);
             gfx_text(254, 198, foe[tgt_sel].name, RGB5(250,220,120), 1);
             int kw = P->known_weak[ftype[tgt_sel]];
-            if (kw) { int el = EDEFS[ftype[tgt_sel]].weak; snprintf(b, sizeof b, "DEBIL: %s", EL_NAME[el]); }
-            else snprintf(b, sizeof b, "DEBIL: ???");
+            if (kw) { int el = EDEFS[ftype[tgt_sel]].weak; snprintf(b, sizeof b, "DÉBIL: %s", EL_NAME[el]); }
+            else snprintf(b, sizeof b, "DÉBIL: ???");
             gfx_text(254, 214, b, RGB5(200,100,100), 1);
             snprintf(b, sizeof b, "HP %d/%d", foe[tgt_sel].hp, foe[tgt_sel].maxhp); gfx_text(254, 230, b, RGB5(180,180,180), 1);
         }
     }
     void draw_win() {
         draw_box(8, 170, 464, 94);
+        char b[96];
+        if (win_page == 1) {                               /* notificación de nivel */
+            gfx_text_c(176, "¡SUBES DE NIVEL!", ((t / 6) & 1) ? RGB5(255,230,120) : RGB5(230,190,80), 2);
+            snprintf(b, sizeof b, "Nv.%d  ->  Nv.%d", old_lv, P->lv);
+            gfx_text_c(198, b, RGB5(240,240,230), 1);
+            snprintf(b, sizeof b, "PV +%d  SP +%d  FUE +%d  DEF +%d  AGI +%d  PSI +%d", gain_hp, gain_sp, gain_atk, gain_def, gain_agi, gain_mag);
+            gfx_text_c(214, b, RGB5(170,220,170), 1);
+            for (int k = 0; k < n_new; k++) { snprintf(b, sizeof b, "Nueva habilidad: %s", SKILLS[new_skill[k]].name); gfx_text_c(230 + k * 11, b, RGB5(120,200,255), 1); }
+            if ((t / 20) & 1) gfx_text(448, 250, "X", RGB5(200,200,200), 1);
+            return;
+        }
         gfx_text_c(176, "VICTORIA", RGB5(230,230,200), 2);
-        char b[64];
-        snprintf(b, sizeof b, "EXP +%d  (x%.1f dificultad %s)", r_exp, DIFFS[diff].exp_mult, DIFFS[diff].name);
+        snprintf(b, sizeof b, "EXP +%d  (x%.1f, %s)", r_exp, DIFFS[diff].exp_mult, DIFFS[diff].name);
         gfx_text(26, 202, b, RGB5(210,210,200), 1);
-        snprintf(b, sizeof b, "SANGRE DE MONSTRUO +%d", r_blood); gfx_text(26, 216, b, RGB5(190,40,40), 1);
+        snprintf(b, sizeof b, "NOTAS +%d", r_notas); gfx_text(26, 216, b, RGB5(120,200,140), 1);
         if (r_item >= 0) { snprintf(b, sizeof b, "Encuentras: %s", ITEM_NAME[r_item]); gfx_text(26, 230, b, RGB5(200,170,90), 1); }
-        snprintf(b, sizeof b, "EXP %d/%d", P->exp, P->exp_needed());
-        gfx_text(300, 202, b, RGB5(150,150,160), 1);
-        if (P->exp >= P->exp_needed()) gfx_text(26, 246, "Reflexiona en un Punto para subir de nivel.", RGB5(150,120,90), 1);
+        snprintf(b, sizeof b, "EXP %d/%d   Nv.%d", P->exp, P->exp_needed(), P->lv);
+        gfx_text(300, 216, b, RGB5(150,150,160), 1);
+        if (lvups > 0) gfx_text(26, 246, "¡Has subido de nivel!", RGB5(255,230,120), 1);
         if ((t / 20) & 1) gfx_text(448, 250, "X", RGB5(200,200,200), 1);
     }
 };
